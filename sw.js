@@ -1,5 +1,5 @@
 /* Service worker Coffre — cache-first pour un lancement 100% hors-ligne une fois installé. */
-const CACHE = 'coffre-v2';
+const CACHE = 'coffre-v3';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
