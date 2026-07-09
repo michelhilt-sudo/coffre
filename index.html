@@ -162,8 +162,8 @@
 
   /* ---------- Écran de verrouillage ---------- */
   #lock{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:calc(var(--toppad) + 20px) 24px calc(var(--botpad) + 20px);}
-  #lock .logo{width:76px;height:76px;border-radius:20px;background:linear-gradient(160deg,#0e8f6f,#0aa58a 55%,#2fc79f);display:grid;place-items:center;margin-bottom:18px;box-shadow:0 10px 30px rgba(14,143,111,.35);}
-  #lock .logo svg{width:40px;height:40px;color:#fff;}
+  #lock .logo{width:76px;height:76px;border-radius:20px;overflow:hidden;margin-bottom:18px;box-shadow:0 10px 30px rgba(0,0,0,.45);}
+  #lock .logo img{width:100%;height:100%;display:block;}
   #lock h2{margin:0 0 6px;font-size:22px;font-weight:700;}
   #lock .hint{color:var(--txt2);font-size:15px;margin-bottom:24px;text-align:center;min-height:40px;max-width:300px;}
   #lock .hint b{color:var(--txt);}
@@ -198,7 +198,7 @@
 
 <!-- ============ ÉCRAN DE VERROUILLAGE ============ -->
 <div id="lock">
-  <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/><circle cx="12" cy="15.5" r="1.4" fill="currentColor" stroke="none"/></svg></div>
+  <div class="logo"><img src="icon-192.png" alt="Safe" width="76" height="76"></div>
   <h2 id="lockTitle">Safe</h2>
   <div class="hint" id="lockHint">Entrez votre code</div>
   <div class="dots" id="dots"></div>
