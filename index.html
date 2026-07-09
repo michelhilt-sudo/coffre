@@ -6,9 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Coffre">
+<meta name="apple-mobile-web-app-title" content="Safe">
 <meta name="theme-color" content="#0b0b0f">
-<title>Coffre</title>
+<title>Safe</title>
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -199,7 +199,7 @@
 <!-- ============ ÉCRAN DE VERROUILLAGE ============ -->
 <div id="lock">
   <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/><circle cx="12" cy="15.5" r="1.4" fill="currentColor" stroke="none"/></svg></div>
-  <h2 id="lockTitle">Coffre</h2>
+  <h2 id="lockTitle">Safe</h2>
   <div class="hint" id="lockHint">Entrez votre code</div>
   <div class="dots" id="dots"></div>
   <div class="keypad" id="keypad"></div>
@@ -215,13 +215,13 @@
 </div>
 
 <div id="sheetRoot"></div>
-<div id="installBanner" class="hidden"><span>💡 Ajoutez Coffre à l'écran d'accueil (<b>Partager → Sur l'écran d'accueil</b>) pour un accès fiable hors-ligne et éviter tout effacement de vos données par Safari.</span><button id="ibClose" aria-label="Fermer">×</button></div>
+<div id="installBanner" class="hidden"><span>💡 Ajoutez Safe à l'écran d'accueil (<b>Partager → Sur l'écran d'accueil</b>) pour un accès fiable hors-ligne et éviter tout effacement de vos données par Safari.</span><button id="ibClose" aria-label="Fermer">×</button></div>
 <div class="toast" id="toast"></div>
 
 <script>
 "use strict";
 /* ==================================================================
-   Coffre — coffre-fort de mots de passe personnel (PWA locale, 100% hors-ligne)
+   Safe — gestionnaire de mots de passe personnel (PWA locale, 100% hors-ligne)
    Chiffrement : AES-256-GCM. La clé maître (aléatoire) chiffre les fiches ;
    elle est elle-même chiffrée ("wrappée") par une clé dérivée du code
    (PBKDF2-SHA256, 310 000 itérations). Rien n'est stocké en clair.
@@ -394,7 +394,7 @@ function buildKeypad(){
 }
 function forgotReset(){
   if(!confirm('Sans votre code, vos mots de passe sont définitivement illisibles : il n’existe aucun moyen de les récupérer.\n\nLe seul recours est de tout effacer et de repartir de zéro.'))return;
-  if(!confirm('Dernière confirmation — effacer TOUT le coffre et créer un nouveau code ?'))return;
+  if(!confirm('Dernière confirmation — tout effacer et créer un nouveau code ?'))return;
   localStorage.removeItem(KEY);
   try{indexedDB.deleteDatabase('coffre-bio');}catch(e){}
   location.reload();
@@ -403,12 +403,12 @@ function lockUI(mode){
   pinMode=mode; pinBuf='';
   if(mode!=='setup2')pinFirst='';
   var t=$('lockTitle'),hint=$('lockHint');
-  if(mode==='setup'&&!meta){t.textContent='Bienvenue';hint.innerHTML='Choisissez le code à 6 chiffres de votre coffre.<br><b>Notez-le en lieu sûr : sans lui, vos mots de passe sont irrécupérables.</b>';}
+  if(mode==='setup'&&!meta){t.textContent='Bienvenue';hint.innerHTML='Choisissez le code à 6 chiffres qui protégera vos mots de passe.<br><b>Notez-le en lieu sûr : sans lui, vos mots de passe sont irrécupérables.</b>';}
   else if(mode==='setup'){t.textContent='Nouveau code';hint.textContent='Choisissez un code à 6 chiffres';}
   else if(mode==='setup2'){t.textContent='Confirmez';hint.textContent='Répétez votre code';}
   else if(mode==='verify'){t.textContent='Code actuel';hint.textContent='Entrez votre code actuel';}
-  else if(mode==='import'){t.textContent='Sauvegarde';hint.textContent='Entrez le code du coffre au moment de la sauvegarde';}
-  else {t.textContent='Coffre';hint.textContent='Entrez votre code';}
+  else if(mode==='import'){t.textContent='Sauvegarde';hint.textContent='Entrez le code en vigueur au moment de la sauvegarde';}
+  else {t.textContent='Safe';hint.textContent='Entrez votre code';}
   renderDots(); buildKeypad();
   $('lock').classList.remove('hidden');
 }
@@ -441,10 +441,10 @@ async function pinComplete(){
         pinFirst='';
         if(pinCb){var cb=pinCb;pinCb=null;cb();}
       } else { // création initiale du coffre
-        hint.textContent='Création du coffre…';
+        hint.textContent='Création de Safe…';
         await createVault(pinFirst);
         pinFirst='';
-        toast('Coffre créé — ajoutez votre 1er mot de passe');
+        toast('Safe créé — ajoutez votre 1er mot de passe');
         doUnlock();
       }
       return;
@@ -581,7 +581,7 @@ function enrollFaceId(cb){
   var uidBytes=new Uint8Array(16);crypto.getRandomValues(uidBytes);
   var chal=new Uint8Array(32);crypto.getRandomValues(chal);
   navigator.credentials.create({publicKey:{
-    challenge:chal, rp:{name:'Coffre'}, user:{id:uidBytes,name:'coffre',displayName:'Coffre'},
+    challenge:chal, rp:{name:'Safe'}, user:{id:uidBytes,name:'safe',displayName:'Safe'},
     pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
     authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},
     timeout:60000
@@ -685,7 +685,7 @@ var ICONS={
 function svg(p){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';}
 
 function renderTabs(){
-  var tabs=[['vault','Coffre',ICONS.vault],['gen','Générateur',ICONS.gen],['settings','Réglages',ICONS.settings]];
+  var tabs=[['vault','Safe',ICONS.vault],['gen','Générateur',ICONS.gen],['settings','Réglages',ICONS.settings]];
   $('tabs').innerHTML=tabs.map(function(t){
     return '<button data-tab="'+t[0]+'" class="'+(state.tab===t[0]?'on':'')+'">'+svg(t[2])+'<span>'+t[1]+'</span></button>';
   }).join('');
@@ -727,7 +727,7 @@ function entryCard(e,q){
     +'</div>';
 }
 function renderVault(hdr,view){
-  hdr.innerHTML='<div class="hdr-row"><h1 class="big">Coffre</h1><button class="hdr-add" id="addBtn">+</button></div>';
+  hdr.innerHTML='<div class="hdr-row"><h1 class="big">Safe</h1><button class="hdr-add" id="addBtn">+</button></div>';
   var q=state.query.trim().toLowerCase();
   var used={}; entries.forEach(function(e){used[catOf(e)]=1;});
   // Le filtre pointait sur une catégorie désormais vide (dernière fiche supprimée) : on rebascule sur Tout.
@@ -751,9 +751,9 @@ function renderVault(hdr,view){
       return '<button class="fchip '+(state.cat===c[0]?'on':'')+'" data-c="'+c[0]+'">'+c[1]+'</button>';}).join('')+'</div>';
 
   if(!entries.length){
-    html+='<div class="empty"><div class="em">🔐</div><p><b>Votre coffre est vide</b></p>'
+    html+='<div class="empty"><div class="em">🔐</div><p><b>Votre Safe est vide</b></p>'
       +'<p>Touchez + et ajoutez chaque compte : le nom du site,<br>votre identifiant et le mot de passe.</p>'
-      +'<p style="margin-top:12px">Un seul code à retenir désormais :<br>celui du coffre 😉</p></div>';
+      +'<p style="margin-top:12px">Un seul code à retenir désormais :<br>celui de Safe 😉</p></div>';
   } else if(!list.length){
     html+='<div class="empty"><div class="em">🤔</div><p>Aucun résultat'+(q?' pour « '+esc(state.query)+' »':'')+'</p></div>';
   } else {
@@ -792,7 +792,7 @@ function renderGen(hdr,view){
     +'<div class="row"><div class="lbl">Symboles (!@#…)</div><div class="sw '+(g.sym?'on':'')+'" data-g="sym"></div></div>'
     +'<div class="row"><div class="lbl">Faciles à lire<div class="sub">Évite les caractères ambigus (0/O, 1/l…)</div></div><div class="sw '+(g.easy?'on':'')+'" data-g="easy"></div></div>'
     +'</div>'
-    +'<p style="color:var(--txt3);font-size:13px;text-align:center;margin:4px 10px">Générez, copiez, puis collez dans le site concerné.<br>Pensez à enregistrer le mot de passe dans une fiche du coffre.</p>';
+    +'<p style="color:var(--txt3);font-size:13px;text-align:center;margin:4px 10px">Générez, copiez, puis collez dans le site concerné.<br>Pensez à enregistrer le mot de passe dans une fiche de Safe.</p>';
   view.innerHTML=h;
 
   function regen(){state.genPwd=genPwd(S().gen.len,S().gen);$('genOut').innerHTML=colorPwd(state.genPwd);}
@@ -854,7 +854,7 @@ function renderSettings(hdr,view){
     +'<div class="row tap danger" id="wipeBtn"><div class="lbl">Tout effacer</div></div>'
     +'</div>';
 
-  h+='<p style="text-align:center;color:var(--txt3);font-size:12px;margin:6px 0 30px">Coffre · mots de passe chiffrés (AES-256) et stockés uniquement sur cet appareil.<br>Exportez régulièrement une sauvegarde chiffrée.</p>';
+  h+='<p style="text-align:center;color:var(--txt3);font-size:12px;margin:6px 0 30px">Safe · mots de passe chiffrés (AES-256) et stockés uniquement sur cet appareil.<br>Exportez régulièrement une sauvegarde chiffrée.</p>';
   h+='<input type="file" id="impFile" accept="application/json,.json" class="hidden">';
 
   view.innerHTML=h;
@@ -921,14 +921,14 @@ function shareOrDownload(content,fname,mime,doneMsg){
 function exportData(){
   var data=JSON.stringify({app:'coffre',v:1,exportedAt:new Date().toISOString(),
     kdf:meta.kdf,wrapPin:meta.wrapPin,data:meta.data},null,2);
-  shareOrDownload(data,'coffre-'+todayStr()+'.json','application/json','Sauvegarde chiffrée exportée');
+  shareOrDownload(data,'safe-'+todayStr()+'.json','application/json','Sauvegarde chiffrée exportée');
 }
 function exportTxt(){
-  if(!entries.length){toast('Coffre vide');return;}
+  if(!entries.length){toast('Safe est vide');return;}
   if(!confirm('Exporter la liste EN CLAIR (lisible par quiconque ouvre le fichier) ?'))return;
   if(!confirm('Document très sensible. À imprimer puis supprimer, ou à ranger en lieu sûr. Continuer ?'))return;
   var d=new Date();
-  var out='COFFRE — mots de passe ('+d.toLocaleDateString('fr-FR')+')\n⚠️ DOCUMENT SENSIBLE — à conserver en lieu sûr\n\n';
+  var out='SAFE — mots de passe ('+d.toLocaleDateString('fr-FR')+')\n⚠️ DOCUMENT SENSIBLE — à conserver en lieu sûr\n\n';
   sortedEntries(entries).forEach(function(e){
     out+='■ '+e.name+(e.fav?' ⭐':'')+'  ['+CATS[catOf(e)].l+']\n';
     if(e.user)out+='   Identifiant : '+e.user+'\n';
@@ -937,7 +937,7 @@ function exportTxt(){
     if(e.notes)out+='   Notes : '+e.notes.replace(/\n/g,'\n           ')+'\n';
     out+='\n';
   });
-  shareOrDownload(out,'coffre-liste-'+todayStr()+'.txt','text/plain','Liste exportée — manipulez-la avec soin');
+  shareOrDownload(out,'safe-liste-'+todayStr()+'.txt','text/plain','Liste exportée — manipulez-la avec soin');
 }
 function importData(ev){
   var file=ev.target.files[0]; if(!file)return;
@@ -969,7 +969,7 @@ async function doImport(pin,d){
   return {added:added,updated:updated};
 }
 function wipeData(){
-  if(!confirm('Effacer TOUT le coffre (toutes les fiches et le code) ? Cette action est irréversible.'))return;
+  if(!confirm('Effacer entièrement Safe (toutes les fiches et le code) ? Cette action est irréversible.'))return;
   if(!confirm('Vraiment tout supprimer ? Exportez d’abord une sauvegarde si besoin.'))return;
   localStorage.removeItem(KEY);
   try{indexedDB.deleteDatabase('coffre-bio');}catch(e){}
@@ -1163,10 +1163,10 @@ function init(){
     return;
   }
   if(corrupt){
-    $('lockTitle').textContent='Coffre';
-    $('lockHint').innerHTML='⚠️ Données illisibles ou incomplètes.<br>Réinitialisez le coffre (les fiches actuelles seront perdues), puis réimportez une sauvegarde si vous en avez une.';
+    $('lockTitle').textContent='Safe';
+    $('lockHint').innerHTML='⚠️ Données illisibles ou incomplètes.<br>Réinitialisez Safe (les fiches actuelles seront perdues), puis réimportez une sauvegarde si vous en avez une.';
     $('keypad').innerHTML=''; $('dots').innerHTML='';
-    var rb=$('lockForgot'); rb.textContent='Réinitialiser le coffre'; rb.classList.remove('hidden');
+    var rb=$('lockForgot'); rb.textContent='Réinitialiser Safe'; rb.classList.remove('hidden');
     return;
   }
   if(!meta){

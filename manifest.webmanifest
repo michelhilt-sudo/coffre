@@ -1,7 +1,7 @@
 {
-  "name": "Coffre",
-  "short_name": "Coffre",
-  "description": "Coffre-fort de mots de passe personnel — chiffré, 100% local, accès par code et Face ID.",
+  "name": "Safe",
+  "short_name": "Safe",
+  "description": "Safe — gestionnaire de mots de passe chiffré, 100% local, accès par code et Face ID.",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0b0f0e",
