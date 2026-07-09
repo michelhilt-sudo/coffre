@@ -260,7 +260,7 @@ function importK(raw){return crypto.subtle.importKey('raw',raw,'AES-GCM',false,[
    `data` = fiches chiffrées ; `settings` en clair (rien de sensible). */
 var KEY='coffre.v1';
 // unlock : 'code' (code seul) | 'bio' (Face ID OU code) | 'both' (Face ID ET code, 2FA)
-var DEFSET={autoLock:'immediate',theme:'auto',unlock:'code',faceIdCred:'',installDismissed:false,gen:{len:16,dig:true,sym:true,easy:true}};
+var DEFSET={autoLock:'immediate',theme:'dark',unlock:'code',faceIdCred:'',installDismissed:false,gen:{len:16,dig:true,sym:true,easy:true}};
 var meta=null, corrupt=false;
 var rawK=null, aesK=null, entries=[]; // en mémoire une fois déverrouillé
 (function(){
@@ -273,6 +273,9 @@ var rawK=null, aesK=null, entries=[]; // en mémoire une fois déverrouillé
     d.settings.gen=Object.assign({},DEFSET.gen,d.settings.gen||{});
     if(!rawUnlock)d.settings.unlock=d.settings.faceId?'bio':'code';
     delete d.settings.faceId;                              // champ obsolète
+    // Nouveau défaut : thème sombre (comme Carnet). Bascule l'ancien défaut 'auto' vers 'dark'
+    // tant que l'utilisateur n'a pas fait de choix explicite de thème dans les Réglages.
+    if(!d.settings.themeSet){ if(d.settings.theme==='auto')d.settings.theme='dark'; d.settings.themeSet=true; }
     d.fails=+d.fails||0; d.lockUntil=+d.lockUntil||0;
     meta=d;
   }catch(e){corrupt=true;}
@@ -861,7 +864,7 @@ function renderSettings(hdr,view){
   $('chgPin').onclick=changePinFlow;
   $('lockBtn').onclick=lockNow;
   $('selAl').onchange=function(e){S().autoLock=e.target.value;persist();};
-  $('selTh').onchange=function(e){S().theme=e.target.value;persist();applyTheme();};
+  $('selTh').onchange=function(e){S().theme=e.target.value;S().themeSet=true;persist();applyTheme();};
   var selU=$('selUnlock'); if(selU)selU.onchange=function(e){changeUnlockMode(e.target.value,selU);};
   $('expBtn').onclick=exportData;
   $('expTxtBtn').onclick=exportTxt;
