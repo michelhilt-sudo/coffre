@@ -374,7 +374,7 @@ function colorPwd(p){
 /* ==================================================================
    VERROUILLAGE (code 6 chiffres + Face ID optionnel)
 ================================================================== */
-var unlocked=false, hiddenAt=0, busyPin=false, secBusy=false;
+var unlocked=false, hiddenAt=0, busyPin=false, secBusy=false, loginTimer=null, loginTick=null;
 var pinBuf='', pinMode='unlock', pinFirst='', pinCb=null, pendingImport=null;
 var BIO_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 4a8 8 0 0 0-7 4"/><path d="M12 4a8 8 0 0 1 7 4"/><path d="M4 12a8 8 0 0 1 4-7M20 12a8 8 0 0 0-4-7"/><path d="M12 9a3 3 0 0 0-3 3v3M12 9a3 3 0 0 1 3 3v2"/><path d="M9 18a6 6 0 0 0 .5 2M15 18a6 6 0 0 1-.5 2"/><path d="M6 15v1a5 5 0 0 0 1 3M18 15v1"/></svg>';
 
@@ -418,12 +418,19 @@ function lockUI(mode){
   else if(mode==='verify'){t.textContent='Code actuel';hint.textContent='Entrez votre code actuel';}
   else if(mode==='import'){t.textContent='Sauvegarde';hint.textContent='Entrez le code en vigueur au moment de la sauvegarde';}
   else {t.textContent='Safe';hint.textContent='Entrez votre code';}
+  // Mode « Code + Face ID » : Face ID D'ABORD (comme le jardin secret de Carnet),
+  // puis le code à saisir dans une fenêtre de 60 s.
+  if(mode==='unlock' && meta && S().unlock==='both' && webauthnAvailable() && S().faceIdCred){
+    $('lock').classList.remove('hidden');
+    renderBioGate();
+    return;
+  }
   renderDots(); buildKeypad();
   $('lock').classList.remove('hidden');
 }
 function lockedOut(){return pinMode==='unlock'&&meta&&meta.lockUntil&&Date.now()<meta.lockUntil;}
 function pinPress(k){
-  if(busyPin||pinMode==='second')return; // étape Face ID : le pavé numérique est inactif
+  if(busyPin||pinMode==='biofirst')return; // étape Face ID (avant le code) : pavé numérique inactif
   if(k==='bio'){tryFaceId();return;}
   if(lockedOut()){
     $('lockHint').textContent='Trop d’essais — attendez '+Math.ceil((meta.lockUntil-Date.now())/1000)+' s';
@@ -482,15 +489,8 @@ async function pinComplete(){
     var ok=await tryUnlock(pinBuf);
     if(ok){
       meta.fails=0; meta.lockUntil=0; persist();
-      if(S().unlock==='both' && S().faceIdCred && webauthnAvailable()){
-        renderSecondFactor();            // code correct → 2e facteur obligatoire (Face ID)
-        setTimeout(runSecondFactor,250); // déclenche la demande Face ID automatiquement
-      } else if(S().unlock==='both'){
-        // 2FA demandée mais Face ID indisponible ici : repli code seul, sans blocage
-        toast('Face ID indisponible — ouverture par code'); doUnlock();
-      } else {
-        doUnlock();
-      }
+      clearLoginWindow();  // clôt la fenêtre 60 s du mode « Code + Face ID »
+      doUnlock();          // en mode 'both', Face ID a déjà été validé AVANT le code (renderBioGate)
     }
     else{
       meta.fails=(meta.fails||0)+1;
@@ -542,6 +542,7 @@ async function changePin(pin){
 }
 function doUnlock(){
   unlocked=true;
+  clearLoginWindow();
   $('lock').classList.add('hidden');
   $('app').classList.remove('hidden');
   render(); maybeBanner();
@@ -553,7 +554,7 @@ function lockNow(){
   // sous l'écran de verrouillage sont préservés). Au redémarrage : code requis.
   // Un flux interrompu (changement de code, import) est abandonné proprement :
   // sans ça, son callback en attente se déclencherait au prochain déverrouillage.
-  pinCb=null; pinFirst=''; pendingImport=null; busyPin=false; secBusy=false;
+  pinCb=null; pinFirst=''; pendingImport=null; busyPin=false; secBusy=false; clearLoginWindow();
   $('app').classList.add('hidden');
   $('installBanner').classList.add('hidden');
   lockUI('unlock');
@@ -635,24 +636,49 @@ function assertFaceId(){
     }}).then(function(){res(true);}).catch(function(){res(false);});
   });
 }
-function renderSecondFactor(){
-  pinMode='second'; pinBuf=''; secBusy=false;
-  $('lockTitle').textContent='Presque là';
-  $('lockHint').textContent='Confirmez avec Face ID';
+/* ----- Mode « Code + Face ID » (façon jardin secret) : Face ID D'ABORD,
+   puis le code dans une fenêtre de 60 s ; passé ce délai on refait Face ID. ----- */
+function renderBioGate(){
+  pinMode='biofirst'; pinBuf=''; secBusy=false; clearLoginWindow();
+  $('lockTitle').textContent='Safe';
+  $('lockHint').textContent='Déverrouillez avec Face ID';
   $('dots').innerHTML='';
   $('keypad').innerHTML='<div></div><button class="key bio" id="secBio">'+BIO_ICON+'</button><div></div>';
-  $('lockForgot').classList.add('hidden');
-  var c=$('lockCancel'); c.textContent='‹ Code'; c.classList.remove('hidden');
-  $('secBio').onclick=runSecondFactor;
+  $('lockCancel').classList.add('hidden');
+  $('lockForgot').classList.toggle('hidden', !meta);
+  $('secBio').onclick=runBioGate;
+  setTimeout(runBioGate,250); // déclenche Face ID automatiquement
 }
-function runSecondFactor(){
+function runBioGate(){
   if(secBusy)return; secBusy=true;
   $('lockHint').textContent='Approchez votre visage…';
   assertFaceId().then(function(ok){
     secBusy=false;
-    if(ok)doUnlock();
-    else $('lockHint').textContent='Face ID requis — touchez le bouton pour réessayer';
+    if(ok)beginBothCode();
+    else $('lockHint').textContent='Face ID requis — touchez pour réessayer';
   });
+}
+function beginBothCode(){
+  pinMode='unlock'; pinBuf='';
+  renderDots(); buildKeypad();      // pavé numérique (aucun raccourci bio en mode 'both')
+  startLoginWindow();
+}
+function startLoginWindow(){
+  clearLoginWindow();
+  var deadline=Date.now()+60000;
+  function tick(){
+    var s=Math.max(0,Math.ceil((deadline-Date.now())/1000));
+    if(pinMode==='unlock' && !busyPin) $('lockHint').textContent='Entrez votre code — '+s+' s';
+  }
+  tick(); loginTick=setInterval(tick,1000);
+  loginTimer=setTimeout(function(){
+    clearLoginWindow(); pinBuf='';
+    toast('Délai dépassé — refaites Face ID'); renderBioGate();
+  },60000);
+}
+function clearLoginWindow(){
+  if(loginTimer){clearTimeout(loginTimer);loginTimer=null;}
+  if(loginTick){clearInterval(loginTick);loginTick=null;}
 }
 
 /* Événements clavier / pavé */
@@ -660,12 +686,6 @@ $('keypad').addEventListener('click',function(e){
   var b=e.target.closest('[data-k]'); if(b)pinPress(b.getAttribute('data-k'));
 });
 $('lockCancel').addEventListener('click',function(){
-  if(pinMode==='second'){
-    // Face ID non validé : on jette la clé/les fiches déchiffrées et on revient au code.
-    rawK=null; aesK=null; entries=[]; secBusy=false;
-    lockUI('unlock');
-    return;
-  }
   pendingImport=null; pinCb=null; pinFirst='';
   doUnlock();
 });
@@ -880,7 +900,7 @@ function renderSettings(hdr,view){
 }
 
 function unlockDesc(m){
-  return m==='both' ? 'Face ID ET code requis à chaque ouverture'
+  return m==='both' ? 'Face ID puis code, à saisir en 1 min'
        : m==='bio'  ? 'Face ID, ou code en secours'
        :              'Code uniquement';
 }
