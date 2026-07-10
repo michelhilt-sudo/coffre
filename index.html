@@ -306,10 +306,34 @@ var CATS={
 var CAT_MIGRATE={banque:'comptes',mail:'identifiants',achats:'identifiants',social:'identifiants',sante:'identifiants',admin:'documents',travail:'pro',autre:'identifiants'};
 function normCat(c){c=(c==null?'':(''+c));return CATS[c]?c:(CAT_MIGRATE[c]||'identifiants');}
 function catOf(e){return normCat(e.cat);}
+
+// Champs à renseigner SELON la catégorie. t : 'text' | 'secret' (masqué) | 'area' (multiligne).
+// gen:true = bouton « générer un mot de passe ». im : inputmode (ex. 'numeric' pour un pavé chiffres).
+var CATFIELDS={
+  identifiants:[{k:'user',l:'Identifiant / e-mail',t:'text'},{k:'pwd',l:'Mot de passe',t:'secret',gen:true},{k:'url',l:'Site web',t:'text'},{k:'notes',l:'Notes',t:'area'}],
+  cartes:[{k:'holder',l:'Titulaire',t:'text'},{k:'number',l:'Numéro de carte',t:'secret',im:'numeric'},{k:'expiry',l:'Expiration (MM/AA)',t:'text',im:'numeric'},{k:'cvv',l:'Cryptogramme (CVV)',t:'secret',im:'numeric'},{k:'pin',l:'Code PIN',t:'secret',im:'numeric'},{k:'notes',l:'Notes',t:'area'}],
+  comptes:[{k:'bank',l:'Banque',t:'text'},{k:'iban',l:'IBAN',t:'secret'},{k:'bic',l:'BIC',t:'text'},{k:'user',l:'Identifiant accès',t:'text'},{k:'pwd',l:'Mot de passe',t:'secret',gen:true},{k:'notes',l:'Notes',t:'area'}],
+  notes:[{k:'notes',l:'Contenu',t:'area'}],
+  documents:[{k:'doctype',l:'Type de document',t:'text'},{k:'number',l:'Numéro',t:'secret'},{k:'holder',l:'Titulaire',t:'text'},{k:'expiry',l:'Date d’expiration',t:'text'},{k:'notes',l:'Notes',t:'area'}],
+  wifi:[{k:'ssid',l:'Nom du réseau',t:'text'},{k:'pwd',l:'Mot de passe',t:'secret',gen:true}],
+  licences:[{k:'editor',l:'Éditeur / logiciel',t:'text'},{k:'key',l:'Clé de licence',t:'secret',gen:true},{k:'serial',l:'N° de série',t:'text'},{k:'notes',l:'Notes',t:'area'}],
+  cles:[{k:'user',l:'Nom / service',t:'text'},{k:'key',l:'Clé / token',t:'secret',gen:true},{k:'notes',l:'Notes',t:'area'}],
+  crypto:[{k:'wallet',l:'Wallet / plateforme',t:'text'},{k:'seed',l:'Phrase de récupération',t:'secret'},{k:'privkey',l:'Clé privée',t:'secret'},{k:'address',l:'Adresse publique',t:'text'},{k:'notes',l:'Notes',t:'area'}],
+  pro:[{k:'user',l:'Identifiant',t:'text'},{k:'pwd',l:'Mot de passe',t:'secret',gen:true},{k:'url',l:'Accès / URL',t:'text'},{k:'notes',l:'Notes',t:'area'}],
+  maison:[{k:'user',l:'Service / appareil',t:'text'},{k:'pwd',l:'Code / mot de passe',t:'secret',gen:true},{k:'notes',l:'Notes',t:'area'}]
+};
+function catFields(cat){return CATFIELDS[cat]||CATFIELDS.identifiants;}
+function fv(e,k){return (e.f&&e.f[k]!=null)?(''+e.f[k]):'';}
+function subtitleOf(e){var fs=catFields(catOf(e));for(var i=0;i<fs.length;i++){if(fs[i].t==='text'&&fv(e,fs[i].k))return fv(e,fs[i].k);}return CATS[catOf(e)].l;}
+function firstSecret(e){var fs=catFields(catOf(e));for(var i=0;i<fs.length;i++){if(fs[i].t==='secret'&&fv(e,fs[i].k))return fs[i];}return null;}
+
 function normEntry(e){
   function s(v){return v==null?'':(''+v);}
-  return {id:s(e.id)||uid(),name:s(e.name),user:s(e.user),pwd:s(e.pwd),url:s(e.url),
-    notes:s(e.notes),cat:normCat(e.cat),fav:!!e.fav,
+  var f={};
+  if(e.f&&typeof e.f==='object'){for(var k in e.f){if(s(e.f[k])!=='')f[k]=s(e.f[k]);}}
+  // Migration des anciennes fiches (champs plats) vers la map f.
+  ['user','pwd','url','notes'].forEach(function(k){if(f[k]==null&&s(e[k])!=='')f[k]=s(e[k]);});
+  return {id:s(e.id)||uid(),name:s(e.name),cat:normCat(e.cat),fav:!!e.fav,f:f,
     createdAt:+e.createdAt||Date.now(),updatedAt:+e.updatedAt||Date.now()};
 }
 function sortedEntries(list){
@@ -746,13 +770,14 @@ function highlight(txt,q){
 }
 function entryCard(e,q){
   var c=CATS[catOf(e)];
-  var sub=e.user||e.url||c.l;
+  var sub=subtitleOf(e);
   var initial=(e.name||'?').trim().charAt(0).toUpperCase()||'?';
+  var sec=firstSecret(e);
   return '<div class="pw" data-id="'+esc(e.id)+'">'
     +'<div class="avatar" style="background:'+c.c+'">'+esc(initial)+'</div>'
     +'<div class="pwc"><div class="pwn">'+(e.fav?'⭐ ':'')+(q?highlight(e.name,q):esc(e.name))+'</div>'
     +'<div class="pwu">'+(q?highlight(sub,q):esc(sub))+'</div></div>'
-    +(e.pwd?'<button class="cbtn" data-copy="'+esc(e.id)+'" aria-label="Copier le mot de passe">'+svg(ICONS.copy)+'</button>':'')
+    +(sec?'<button class="cbtn" data-copy="'+esc(e.id)+'" data-copyk="'+esc(sec.k)+'" data-copyl="'+esc(sec.l)+'" aria-label="Copier">'+svg(ICONS.copy)+'</button>':'')
     +'</div>';
 }
 function renderVault(hdr,view){
@@ -768,7 +793,9 @@ function renderVault(hdr,view){
     if(state.cat==='fav'&&!e.fav)return false;
     if(state.cat!=='all'&&state.cat!=='fav'&&catOf(e)!==state.cat)return false;
     if(!q)return true;
-    var hay=(e.name+' '+e.user+' '+e.url+' '+e.notes+' '+CATS[catOf(e)].l).toLowerCase();
+    var hay=e.name+' '+CATS[catOf(e)].l;
+    catFields(catOf(e)).forEach(function(fl){if(fl.t!=='secret')hay+=' '+fv(e,fl.k);}); // pas les secrets
+    hay=hay.toLowerCase();
     return hay.indexOf(q)>=0;
   });
   list=sortedEntries(list);
@@ -801,7 +828,7 @@ function renderVault(hdr,view){
   view.querySelectorAll('[data-copy]').forEach(function(b){b.onclick=function(ev){
     ev.stopPropagation();
     var e=entries.find(function(x){return x.id===b.getAttribute('data-copy');});
-    if(e)copyTxt(e.pwd,'Mot de passe');
+    if(e)copyTxt(fv(e,b.getAttribute('data-copyk')),b.getAttribute('data-copyl')||'Élément');
   };});
   view.querySelectorAll('.pw').forEach(function(c){c.onclick=function(){openDetail(c.getAttribute('data-id'));};});
 }
@@ -960,10 +987,9 @@ function exportTxt(){
   var out='SAFE — mots de passe ('+d.toLocaleDateString('fr-FR')+')\n⚠️ DOCUMENT SENSIBLE — à conserver en lieu sûr\n\n';
   sortedEntries(entries).forEach(function(e){
     out+='■ '+e.name+(e.fav?' ⭐':'')+'  ['+CATS[catOf(e)].l+']\n';
-    if(e.user)out+='   Identifiant : '+e.user+'\n';
-    if(e.pwd)out+='   Mot de passe : '+e.pwd+'\n';
-    if(e.url)out+='   Site : '+e.url+'\n';
-    if(e.notes)out+='   Notes : '+e.notes.replace(/\n/g,'\n           ')+'\n';
+    catFields(catOf(e)).forEach(function(fl){var v=fv(e,fl.k);if(v)out+='   '+fl.l+' : '+v.replace(/\n/g,'\n           ')+'\n';});
+    var kn={};catFields(catOf(e)).forEach(function(fl){kn[fl.k]=1;});
+    Object.keys(e.f||{}).forEach(function(k){if(!kn[k]&&e.f[k])out+='   '+k+' : '+(''+e.f[k])+'\n';});
     out+='\n';
   });
   shareOrDownload(out,'safe-liste-'+todayStr()+'.txt','text/plain','Liste exportée — manipulez-la avec soin');
@@ -1011,23 +1037,31 @@ function wipeData(){
 var sheetOpen=false;
 function openDetail(id){
   var e=entries.find(function(x){return x.id===id;}); if(!e)return;
-  var c=CATS[catOf(e)], revealed=false;
+  var c=CATS[catOf(e)];
   var root=$('sheetRoot');
-  function pwdHtml(){
-    return revealed?esc(e.pwd):'••••••••••';
-  }
+  var fs=catFields(catOf(e));
+  function labelOf(k){for(var i=0;i<fs.length;i++)if(fs[i].k===k)return fs[i].l;return k;}
   var rows='';
-  if(e.user)rows+='<div class="drow"><div class="dcol"><div class="dl">Identifiant</div><div class="dv">'+esc(e.user)+'</div></div>'
-    +'<button class="ic" data-act="cu" aria-label="Copier l’identifiant">'+svg(ICONS.copy)+'</button></div>';
-  if(e.pwd)rows+='<div class="drow"><div class="dcol"><div class="dl">Mot de passe</div><div class="dv mono" id="dPwd">'+pwdHtml()+'</div></div>'
-    +'<button class="ic" id="dEye" aria-label="Afficher">'+svg(ICONS.eye)+'</button>'
-    +'<button class="ic" data-act="cp" aria-label="Copier le mot de passe">'+svg(ICONS.copy)+'</button></div>';
-  if(e.url){
-    var href=/^https?:\/\//i.test(e.url)?e.url:'https://'+e.url;
-    rows+='<div class="drow"><div class="dcol"><div class="dl">Site</div><div class="dv"><a href="'+esc(href)+'" target="_blank" rel="noopener">'+esc(e.url)+'</a></div></div>'
-      +'<button class="ic" data-act="cl" aria-label="Copier l’adresse">'+svg(ICONS.copy)+'</button></div>';
-  }
-  if(e.notes)rows+='<div class="drow"><div class="dcol"><div class="dl">Notes</div><div class="dv">'+esc(e.notes)+'</div></div></div>';
+  fs.forEach(function(fl){
+    var val=fv(e,fl.k); if(!val)return;
+    if(fl.t==='secret'){
+      rows+='<div class="drow"><div class="dcol"><div class="dl">'+esc(fl.l)+'</div><div class="dv mono" data-val="'+esc(fl.k)+'">••••••••••</div></div>'
+        +'<button class="ic" data-eye="'+esc(fl.k)+'" aria-label="Afficher">'+svg(ICONS.eye)+'</button>'
+        +'<button class="ic" data-copy="'+esc(fl.k)+'" aria-label="Copier">'+svg(ICONS.copy)+'</button></div>';
+    } else if(fl.t==='area'){
+      rows+='<div class="drow"><div class="dcol"><div class="dl">'+esc(fl.l)+'</div><div class="dv">'+esc(val)+'</div></div>'
+        +'<button class="ic" data-copy="'+esc(fl.k)+'" aria-label="Copier">'+svg(ICONS.copy)+'</button></div>';
+    } else {
+      var inner;
+      if(fl.k==='url'){var href=/^https?:\/\//i.test(val)?val:'https://'+val;inner='<a href="'+esc(href)+'" target="_blank" rel="noopener">'+esc(val)+'</a>';}
+      else inner=esc(val);
+      rows+='<div class="drow"><div class="dcol"><div class="dl">'+esc(fl.l)+'</div><div class="dv">'+inner+'</div></div>'
+        +'<button class="ic" data-copy="'+esc(fl.k)+'" aria-label="Copier">'+svg(ICONS.copy)+'</button></div>';
+    }
+  });
+  // Champs d'une autre catégorie (fiche re-catégorisée) : on les montre pour ne rien cacher.
+  var known={}; fs.forEach(function(fl){known[fl.k]=1;});
+  Object.keys(e.f||{}).forEach(function(k){if(!known[k]&&e.f[k])rows+='<div class="drow"><div class="dcol"><div class="dl">'+esc(k)+'</div><div class="dv">'+esc(''+e.f[k])+'</div></div><button class="ic" data-copy="'+esc(k)+'" aria-label="Copier">'+svg(ICONS.copy)+'</button></div>';});
   if(!rows)rows='<div class="empty" style="padding:20px"><p>Fiche vide — touchez Modifier.</p></div>';
 
   root.innerHTML=''
@@ -1046,19 +1080,17 @@ function openDetail(id){
   $('shBg').onclick=function(){closeSheet();};
   $('shClose').onclick=function(){closeSheet();};
   $('shEdit').onclick=function(){closeSheet(true);openEditor(id);};
-  var eye=$('dEye');
-  if(eye)eye.onclick=function(){
-    revealed=!revealed;
-    $('dPwd').textContent=revealed?e.pwd:'••••••••••';
-    eye.innerHTML=svg(revealed?ICONS.eyeOff:ICONS.eye);
-  };
-  root.querySelectorAll('[data-act]').forEach(function(b){
+  root.querySelectorAll('[data-eye]').forEach(function(b){
     b.onclick=function(){
-      var a=b.getAttribute('data-act');
-      if(a==='cu')copyTxt(e.user,'Identifiant');
-      else if(a==='cp')copyTxt(e.pwd,'Mot de passe');
-      else if(a==='cl')copyTxt(e.url,'Adresse');
+      var k=b.getAttribute('data-eye'), dv=root.querySelector('.dv[data-val="'+k+'"]');
+      var shown=dv.getAttribute('data-shown')==='1';
+      dv.textContent=shown?'••••••••••':fv(e,k);
+      if(shown)dv.removeAttribute('data-shown');else dv.setAttribute('data-shown','1');
+      b.innerHTML=svg(shown?ICONS.eye:ICONS.eyeOff);
     };
+  });
+  root.querySelectorAll('[data-copy]').forEach(function(b){
+    b.onclick=function(){var k=b.getAttribute('data-copy');copyTxt(fv(e,k),labelOf(k));};
   });
 }
 
@@ -1076,23 +1108,27 @@ function openEditor(id){
     +'<div class="field"><label>Catégorie</label><select class="full" id="fCat">'
       +Object.keys(CATS).map(function(k){return '<option value="'+k+'" '+(catOf(e)===k?'selected':'')+'>'+CATS[k].l+'</option>';}).join('')
     +'</select></div>'
-    +'<div class="field"><label>Identifiant / e-mail</label><input id="fUser" type="text" placeholder="ex. marie@orange.fr" value="'+esc(e.user)+'" autocapitalize="off" autocorrect="off" autocomplete="off"></div>'
-    +'<div class="field"><label>Mot de passe</label><div class="pwd-wrap">'
-      +'<input id="fPwd" type="text" class="masked mono" value="'+esc(e.pwd)+'" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false">'
-      +'<button class="ic" id="fEye" aria-label="Afficher">'+svg(ICONS.eye)+'</button>'
-      +'<button class="ic" id="fGen" aria-label="Générer" title="Générer un mot de passe">'+svg(ICONS.dice)+'</button>'
-    +'</div></div>'
-    +'<div class="field"><label>Site web</label><input id="fUrl" type="text" placeholder="ex. orange.fr" value="'+esc(e.url)+'" autocapitalize="off" autocorrect="off" autocomplete="off"></div>'
-    +'<div class="field"><label>Notes</label><textarea id="fNotes" placeholder="ex. question secrète, n° client…">'+esc(e.notes)+'</textarea></div>'
+    +'<div id="fFields"></div>'
     +'<div class="field"><div class="inline-toggle"><span class="lbl">⭐ Favori (en haut de la liste)</span><div class="sw '+(e.fav?'on':'')+'" id="fFav"></div></div></div>'
     +(isNew?'':'<button class="del-btn" id="fDel">Supprimer la fiche</button>')
     +'</div></div>';
 
-  var cur={fav:e.fav,masked:true};
+  var cur={fav:e.fav, vals:Object.assign({}, e.f||{})};
+  var masked={};
+  function fieldHtml(fl){
+    var val=cur.vals[fl.k]!=null?(''+cur.vals[fl.k]):'';
+    var a='autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false"'+(fl.im?' inputmode="'+fl.im+'"':'');
+    if(fl.t==='area')return '<div class="field"><label>'+esc(fl.l)+'</label><textarea id="ef_'+fl.k+'">'+esc(val)+'</textarea></div>';
+    if(fl.t==='secret'){masked[fl.k]=true;return '<div class="field"><label>'+esc(fl.l)+'</label><div class="pwd-wrap"><input id="ef_'+fl.k+'" type="text" class="masked mono" value="'+esc(val)+'" '+a+'><button class="ic" data-eye="'+fl.k+'">'+svg(ICONS.eye)+'</button>'+(fl.gen?'<button class="ic" data-gen="'+fl.k+'">'+svg(ICONS.dice)+'</button>':'')+'</div></div>';}
+    return '<div class="field"><label>'+esc(fl.l)+'</label><input id="ef_'+fl.k+'" type="text" value="'+esc(val)+'" '+a+'></div>';
+  }
+  function readInputs(){catFields($('fCat').value).forEach(function(fl){var el=$('ef_'+fl.k);if(el)cur.vals[fl.k]=el.value;});}
+  function renderFields(){$('fFields').innerHTML=catFields($('fCat').value).map(fieldHtml).join('');}
   setTimeout(function(){$('shBg').classList.add('show');$('sh').classList.add('show');},10);
   sheetOpen=true;
+  renderFields();
 
-  function snap(){return [$('fName').value,$('fUser').value,$('fPwd').value,$('fUrl').value,$('fNotes').value,$('fCat').value,cur.fav?1:0].join(' ');}
+  function snap(){readInputs();return $('fName').value+'|'+$('fCat').value+'|'+(cur.fav?1:0)+'|'+JSON.stringify(cur.vals);}
   var initSnap=snap();
   function tryClose(){
     if(snap()!==initSnap&&!confirm('Abandonner les modifications ?'))return;
@@ -1101,35 +1137,34 @@ function openEditor(id){
   $('shBg').onclick=tryClose;
   $('shCancel').onclick=tryClose;
   var favSw=$('fFav'); favSw.onclick=function(){cur.fav=!cur.fav;favSw.classList.toggle('on',cur.fav);};
-  var pwdIn=$('fPwd'), eyeBtn=$('fEye');
-  eyeBtn.onclick=function(){
-    cur.masked=!cur.masked;
-    pwdIn.classList.toggle('masked',cur.masked);
-    eyeBtn.innerHTML=svg(cur.masked?ICONS.eye:ICONS.eyeOff);
-  };
-  $('fGen').onclick=function(){
-    if(pwdIn.value&&!confirm('Remplacer le mot de passe actuel par un nouveau ?'))return;
-    pwdIn.value=genPwd(S().gen.len,S().gen);
-    if(cur.masked)eyeBtn.click(); // on montre le mot de passe généré
-  };
+  $('fCat').onchange=function(){readInputs();renderFields();};
+  $('fFields').addEventListener('click',function(ev){
+    var eb=ev.target.closest('[data-eye]');
+    if(eb){var k=eb.getAttribute('data-eye'),inp=$('ef_'+k);masked[k]=!masked[k];inp.classList.toggle('masked',masked[k]);eb.innerHTML=svg(masked[k]?ICONS.eye:ICONS.eyeOff);return;}
+    var gb=ev.target.closest('[data-gen]');
+    if(gb){var k2=gb.getAttribute('data-gen'),inp2=$('ef_'+k2);
+      if(inp2.value&&!confirm('Remplacer par un nouveau mot de passe ?'))return;
+      inp2.value=genPwd(S().gen.len,S().gen);
+      if(masked[k2]){masked[k2]=false;inp2.classList.remove('masked');var e2=$('fFields').querySelector('[data-eye="'+k2+'"]');if(e2)e2.innerHTML=svg(ICONS.eyeOff);}
+    }
+  });
   var saving=false;
   $('shSave').onclick=async function(){
     if(saving)return;
     var name=$('fName').value.trim();
-    var user=$('fUser').value.trim(), pwd=$('fPwd').value, url=$('fUrl').value.trim(), notes=$('fNotes').value.trim();
-    // Garde anti-fiche-vide : uniquement à la création
-    if(isNew&&!name&&!user&&!pwd){closeSheet();return;}
+    readInputs();
+    var f={};
+    Object.keys(cur.vals).forEach(function(k){var v=(''+cur.vals[k]).trim();if(v!=='')f[k]=v;});
+    if(isNew&&!name&&!Object.keys(f).length){closeSheet();return;} // garde anti-fiche-vide (création)
     if(!name){toast('Donnez un nom à cette fiche');return;}
     saving=true;
-    var now=Date.now();
+    var now=Date.now(), cat=$('fCat').value;
     if(isNew){
-      e.name=name;e.user=user;e.pwd=pwd;e.url=url;e.notes=notes;
-      e.cat=$('fCat').value;e.fav=cur.fav;e.createdAt=now;e.updatedAt=now;
+      e.name=name;e.cat=cat;e.fav=cur.fav;e.f=f;e.createdAt=now;e.updatedAt=now;
       entries.push(e);
     } else {
       var real=entries.find(function(x){return x.id===e.id;});
-      real.name=name;real.user=user;real.pwd=pwd;real.url=url;real.notes=notes;
-      real.cat=$('fCat').value;real.fav=cur.fav;real.updatedAt=now;
+      real.name=name;real.cat=cat;real.fav=cur.fav;real.f=f;real.updatedAt=now;
     }
     try{await saveEntries();}catch(x){toast('Erreur d’enregistrement');saving=false;return;}
     closeSheet(); render(); toast(isNew?'Fiche créée':'Enregistré');
