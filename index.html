@@ -290,20 +290,26 @@ function pad(n){return n<10?'0'+n:''+n;}
 function todayStr(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
 function esc(s){return (s||'').replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 var CATS={
-  banque:{l:'Banque',c:'#0a84ff'},
-  mail:{l:'Email',c:'#5e5ce6'},
-  achats:{l:'Achats',c:'#ff9f0a'},
-  social:{l:'Réseaux',c:'#32ade6'},
-  sante:{l:'Santé',c:'#ff375f'},
-  admin:{l:'Administratif',c:'#af52de'},
-  travail:{l:'Travail',c:'#a2845e'},
-  autre:{l:'Autre',c:'#8e8e93'}
+  identifiants:{l:'🔑 Identifiants',c:'#0a84ff'},
+  cartes:{l:'💳 Cartes bancaires',c:'#30d158'},
+  comptes:{l:'🏦 Comptes bancaires',c:'#5e5ce6'},
+  notes:{l:'📝 Notes sécurisées',c:'#ff9f0a'},
+  documents:{l:'🪪 Documents d’identité',c:'#af52de'},
+  wifi:{l:'📶 Wi-Fi',c:'#32ade6'},
+  licences:{l:'🧾 Licences & logiciels',c:'#8d6e63'},
+  cles:{l:'🔐 Clés numériques',c:'#64d2ff'},
+  crypto:{l:'🪙 Crypto / Wallets',c:'#ff375f'},
+  pro:{l:'💼 Professionnel',c:'#8e8e93'},
+  maison:{l:'🏠 Famille / Maison',c:'#ffb340'}
 };
-function catOf(e){return CATS[e.cat]?e.cat:'autre';}
+// Migration des anciennes catégories vers le nouveau schéma (fiches déjà enregistrées).
+var CAT_MIGRATE={banque:'comptes',mail:'identifiants',achats:'identifiants',social:'identifiants',sante:'identifiants',admin:'documents',travail:'pro',autre:'identifiants'};
+function normCat(c){c=(c==null?'':(''+c));return CATS[c]?c:(CAT_MIGRATE[c]||'identifiants');}
+function catOf(e){return normCat(e.cat);}
 function normEntry(e){
   function s(v){return v==null?'':(''+v);}
   return {id:s(e.id)||uid(),name:s(e.name),user:s(e.user),pwd:s(e.pwd),url:s(e.url),
-    notes:s(e.notes),cat:CATS[e.cat]?e.cat:'autre',fav:!!e.fav,
+    notes:s(e.notes),cat:normCat(e.cat),fav:!!e.fav,
     createdAt:+e.createdAt||Date.now(),updatedAt:+e.updatedAt||Date.now()};
 }
 function sortedEntries(list){
