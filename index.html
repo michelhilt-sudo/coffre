@@ -608,7 +608,7 @@ function tryFaceId(){
   var chal=new Uint8Array(32);crypto.getRandomValues(chal);
   var raw=b64d(S().faceIdCred);
   navigator.credentials.get({publicKey:{
-    challenge:chal, allowCredentials:[{type:'public-key',id:raw}],
+    challenge:chal, allowCredentials:[{type:'public-key',id:raw,transports:['internal']}],
     userVerification:'required', timeout:60000
   }}).then(async function(){
     if(rawK){doUnlock();return;} // clé déjà en mémoire : simple re-déverrouillage
@@ -631,7 +631,7 @@ function assertFaceId(){
     var chal=new Uint8Array(32);crypto.getRandomValues(chal);
     var raw=b64d(S().faceIdCred);
     navigator.credentials.get({publicKey:{
-      challenge:chal, allowCredentials:[{type:'public-key',id:raw}],
+      challenge:chal, allowCredentials:[{type:'public-key',id:raw,transports:['internal']}],
       userVerification:'required', timeout:60000
     }}).then(function(){res(true);}).catch(function(){res(false);});
   });
